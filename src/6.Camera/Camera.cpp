@@ -13,8 +13,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-// TODO:: Refactor for SDL
-
 void keyboard_handling();
 void mouse_handling(SDL_MouseMotionEvent &event);
 void scroll_handling(SDL_MouseWheelEvent &event);
@@ -40,7 +38,6 @@ glm::vec3 cameraUp    = glm::vec3(0.0f, 1.0f,  0.0f);
 
 float lastX = 400, lastY = 300;
 float yaw = 270, pitch = 0;
-bool firstMouse = true;
 
 float fov = 45.0f;
 
@@ -128,41 +125,6 @@ int main(int argc, char * argv[])
     glDeleteBuffers(1, &VBO);
 
     return 0;
-}
-
-// process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
-// ---------------------------------------------------------------------------------------------------------
-void keyboard_handling()
-{
-    if (keystate[SDL_SCANCODE_ESCAPE])
-    {
-        SDL_Event quit;
-        quit.type = SDL_QUIT;
-        SDL_PushEvent(&quit);
-        return;
-    }
-
-    float cameraSpeed = 2.5f * deltaTime;
-    if (keystate[SDL_SCANCODE_W])
-    {
-//        std::cout<<"Key W Down"<<std::endl;
-        cameraPos += cameraSpeed * cameraFront;
-    }
-    if (keystate[SDL_SCANCODE_S])
-    {
-//        std::cout<<"Key S Down"<<std::endl;
-        cameraPos -= cameraSpeed * cameraFront;
-    }
-    if (keystate[SDL_SCANCODE_A])
-    {
-//        std::cout<<"Key A Down"<<std::endl;
-        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-    }
-    if (keystate[SDL_SCANCODE_D])
-    {
-//        std::cout<<"Key D Down"<<std::endl;
-        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-    }
 }
 
 void renderInit(unsigned int *VAO, unsigned int *VBO)
@@ -370,6 +332,39 @@ int textureCreate(const char *file, int *width, int *height, int *nrChannels)
     stbi_image_free(data);
 
     return texture;
+}
+
+void keyboard_handling()
+{
+    if (keystate[SDL_SCANCODE_ESCAPE])
+    {
+        SDL_Event quit;
+        quit.type = SDL_QUIT;
+        SDL_PushEvent(&quit);
+        return;
+    }
+
+    float cameraSpeed = 2.5f * deltaTime;
+    if (keystate[SDL_SCANCODE_W])
+    {
+//        std::cout<<"Key W Down"<<std::endl;
+        cameraPos += cameraSpeed * cameraFront;
+    }
+    if (keystate[SDL_SCANCODE_S])
+    {
+//        std::cout<<"Key S Down"<<std::endl;
+        cameraPos -= cameraSpeed * cameraFront;
+    }
+    if (keystate[SDL_SCANCODE_A])
+    {
+//        std::cout<<"Key A Down"<<std::endl;
+        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    }
+    if (keystate[SDL_SCANCODE_D])
+    {
+//        std::cout<<"Key D Down"<<std::endl;
+        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    }
 }
 
 void mouse_handling(SDL_MouseMotionEvent &event)

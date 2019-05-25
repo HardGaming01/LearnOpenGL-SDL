@@ -1,5 +1,5 @@
 #include <glad/glad.h>
-#include <GLFW/glfw3.h>
+#include <SDL2/SDL.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -7,7 +7,6 @@
 
 #include <iostream>
 #include <cmath>
-#include <SDL2/SDL_events.h>
 
 #include "shader.h"
 #include "camera.h"
@@ -15,12 +14,13 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height);
-void processInput(GLFWwindow *window);
+void keyboard_handling();
 void mouse_handling(SDL_MouseMotionEvent &event);
 void scroll_handling(SDL_MouseWheelEvent &event);
 
 int contextCreate();
+void sdl_die(const char *message);
+
 int textureCreate(const char *file, int *width, int *height, int *nrChannels);
 void renderInit(unsigned int *VAO, unsigned int *VBO);
 void renderUpdate(Shader &shaderProgram, unsigned int *VAO, int texture1, int texture2, glm::vec3 *cubePositions);
@@ -29,28 +29,28 @@ void renderUpdate(Shader &shaderProgram, unsigned int *VAO, int texture1, int te
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
+static SDL_Window *window = NULL;
+static SDL_GLContext glContext;
+
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f,  3.0f));
-bool firstMouse = true;
 float lastX = 400, lastY = 300;
 
-// framerate
-float deltaTime = 0.0f;	// Time between current frame and last frame
-float lastFrame = 0.0f; // Time of last frame
+//framerate
+Uint64 NOW = SDL_GetPerformanceCounter();
+Uint64 LAST = 0;
+double deltaTime = 0;
 
-int main()
+//keyboard
+const Uint8 * keystate;
+
+int main(int argc, char * argv[])
 {
-    GLFWwindow* window;
-
     if (contextCreate() == -1)
     {
         return -1;
     }
 
-    // system settings
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetCursorPosCallback(<#initializer#>);
-    glfwSetScrollCallback(0);
     glEnable(GL_DEPTH_TEST);
 
     unsigned int VAO, VBO;
@@ -75,26 +75,43 @@ int main()
     int texture1 = textureCreate("./Assets/container.jpg", &textureWidth, &textureHeight, &nrChannels);
     int texture2 = textureCreate("./Assets/awesomeface.png", &textureWidth, &textureHeight, &nrChannels);
 
+    SDL_Event event;
+    bool quit = false;
     // render loop
     // -----------
-    while (!glfwWindowShouldClose(window))
+    while (!quit)
     {
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        // input
-        // -----
-        processInput(window);
-
+        keystate = SDL_GetKeyboardState(nullptr);
+        while (SDL_PollEvent(&event))
+        {
+            if (event.type == SDL_QUIT)
+            {
+                quit = true;
+            }
+            if (event.type == SDL_MOUSEMOTION)
+            {
+                mouse_handling(event.motion);
+            }
+            if (event.type == SDL_MOUSEWHEEL)
+            {
+                scroll_handling(event.wheel);
+            }
+        }
+        keyboard_handling();
         // framerate sample
-        float currentFrame = glfwGetTime();
-        deltaTime = currentFrame - lastFrame;
-        lastFrame = currentFrame;
+        LAST = NOW;
+        NOW = SDL_GetPerformanceCounter();
+        deltaTime = (double)((NOW - LAST)/ (double)SDL_GetPerformanceFrequency() );
 
+//        std::cout<< "Delta time is: "<<deltaTime << std::endl;
+
+        // render
+        // ------
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         renderUpdate(ourShader, &VAO, texture1, texture2, cubePositions);
 
-        // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
-        // -------------------------------------------------------------------------------
-        glfwSwapBuffers(window);
-        glfwPollEvents();
+        SDL_GL_SwapWindow(window);
     }
 
     // optional: de-allocate all resources once they've outlived their purpose:
@@ -102,38 +119,9 @@ int main()
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
 
-    // glfw: terminate, clearing all previously allocated GLFW resources.
-    // ------------------------------------------------------------------
-    glfwTerminate();
     return 0;
 }
 
-// process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
-// ---------------------------------------------------------------------------------------------------------
-void processInput(GLFWwindow *window)
-{
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
-
-    float cameraSpeed = 2.5f * deltaTime;
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        camera.ProcessKeyboard(FORWARD, deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        camera.ProcessKeyboard(BACKWARD, deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        camera.ProcessKeyboard(LEFT, deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        camera.ProcessKeyboard(RIGHT, deltaTime);
-}
-
-// glfw: whenever the window size changed (by OS or user resize) this callback function executes
-// ---------------------------------------------------------------------------------------------
-void framebuffer_size_callback(GLFWwindow* window, int width, int height)
-{
-    // make sure the viewport matches the new window dimensions; note that width and
-    // height will be significantly larger than specified on retina displays.
-    glViewport(0, 0, width, height);
-}
 void renderInit(unsigned int *VAO, unsigned int *VBO)
 {
     // set up vertex data (and buffer(s)) and configure vertex attributes
@@ -224,63 +212,84 @@ void renderUpdate(Shader &shaderProgram, unsigned int *VAO, int texture1, int te
     // set transform
     glBindVertexArray(*VAO);
 
-    float radius = 10.0f;
-    float camX = sin(glfwGetTime()) * radius;
-    float camZ = cos(glfwGetTime()) * radius;
     glm::mat4 view;
     view = camera.GetViewMatrix();
     glm::mat4 projection;
     projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
+    float time = SDL_GetTicks() / 3600.0f;
 
     for(unsigned int i = 0; i < 10; i++)
     {
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, cubePositions[i]);
         float angle = 20.0f * (i + 1);
-        model = glm::rotate(model, (float)glfwGetTime() * glm::radians(angle), glm::vec3(0.5f, 1.0f, 0.0f));
+        model = glm::rotate(model, time * glm::radians(angle), glm::vec3(0.5f, 1.0f, 0.0f));
         model = projection * view * model;
         shaderProgram.setMat4("transform", model);
 
         glDrawArrays(GL_TRIANGLES, 0, 36);
     }
-
 }
 
 int contextCreate()
 {
-    // glfw: initialize and configure
-    // ------------------------------
-    glfwInit();
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    //Initialize SDL
+    if (SDL_Init(SDL_INIT_VIDEO) < 0)
+        sdl_die("Couldn't initialize SDL");
+    atexit (SDL_Quit);
 
-#ifdef __APPLE__
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // uncomment this statement to fix compilation on OS X
-#endif
+    //Context Setup
+    SDL_GL_LoadLibrary(nullptr); // Default OpenGL is fine.
 
-    // glfw window creation
-    // --------------------
-    *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
-    if (*window == NULL)
-    {
-        std::cout << "Failed to create GLFW window" << std::endl;
-        glfwTerminate();
-        return -1;
-    }
-    glfwMakeContextCurrent(*window);
-    glfwSetFramebufferSizeCallback(*window, framebuffer_size_callback);
+    // Request an OpenGL 3.3 context (should be core)
+    SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    // Also request a depth buffer
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
-    // Enable depth buffer
+    //Create Window
+    window = SDL_CreateWindow(
+        "LearnOpenGL_SDL",
+        SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+        SCR_WIDTH, SCR_HEIGHT, SDL_WINDOW_OPENGL
+    );
+    if (window == nullptr) sdl_die("Couldn't set video mode");
+
+    // Create Context
+    glContext = SDL_GL_CreateContext(window);
+    if (glContext == nullptr) sdl_die("Failed to create OpenGL Context");
 
     // glad: load all OpenGL function pointers
     // ---------------------------------------
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+    if (!gladLoadGLLoader(SDL_GL_GetProcAddress))
     {
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
+    std::cout<<"Vendor:    "<<glGetString(GL_VENDOR)<<std::endl;
+    std::cout<<"Renderer:  "<<glGetString(GL_RENDERER)<<std::endl;
+    std::cout<<"Version:   "<<glGetString(GL_VERSION)<<std::endl;
+
+    // Use v-sync
+    SDL_GL_SetSwapInterval(-1);
+    SDL_SetRelativeMouseMode(SDL_TRUE);
+
+    // Disable depth test and face culling.
+    glDisable(GL_CULL_FACE);
+
+    int w,h;
+    SDL_GetWindowSize(window, &w, &h);
+    glViewport(0, 0, w, h);
+    glClearColor(0.4f, 0.7f, 1.0f, 0.0f);
     return 0;
+}
+
+void sdl_die(const char *message)
+{
+    std::cerr<<message<<": "<<SDL_GetError()<<std::endl;
+    exit(2);
 }
 
 int textureCreate(const char *file, int *width, int *height, int *nrChannels)
@@ -320,24 +329,44 @@ int textureCreate(const char *file, int *width, int *height, int *nrChannels)
     return texture;
 }
 
-void mouse_handling(SDL_MouseMotionEvent &event)
+void keyboard_handling()
 {
-    if(firstMouse)
+    if (keystate[SDL_SCANCODE_ESCAPE])
     {
-        lastX = xpos;
-        lastY = ypos;
-        firstMouse = false;
+        SDL_Event quit;
+        quit.type = SDL_QUIT;
+        SDL_PushEvent(&quit);
+        return;
     }
 
-    float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos;
-    lastX = xpos;
-    lastY = ypos;
+    if (keystate[SDL_SCANCODE_W])
+    {
+//        std::cout<<"Key W Down"<<std::endl;
+        camera.ProcessKeyboard(FORWARD, deltaTime);
+    }
+    if (keystate[SDL_SCANCODE_S])
+    {
+//        std::cout<<"Key S Down"<<std::endl;
+        camera.ProcessKeyboard(BACKWARD, deltaTime);
+    }
+    if (keystate[SDL_SCANCODE_A])
+    {
+//        std::cout<<"Key A Down"<<std::endl;
+        camera.ProcessKeyboard(LEFT, deltaTime);
+    }
+    if (keystate[SDL_SCANCODE_D])
+    {
+//        std::cout<<"Key D Down"<<std::endl;
+        camera.ProcessKeyboard(RIGHT, deltaTime);
+    }
+}
 
-    camera.ProcessMouseMovement(xoffset, yoffset);
+void mouse_handling(SDL_MouseMotionEvent &event)
+{
+    camera.ProcessMouseMovement(event.xrel, -event.yrel);
 }
 
 void scroll_handling(SDL_MouseWheelEvent &event)
 {
-    camera.ProcessMouseScroll(yoffset);
+    camera.ProcessMouseScroll(event.y);
 }

@@ -1,1 +1,1 @@
-# LearnOpenGL-GLFW
+# LearnOpenGL-SDL

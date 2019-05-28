@@ -6,4 +6,11 @@ file(COPY Assets
         DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(5.Coordinates ${SRC_FILES})
-target_link_libraries(5.Coordinates ${SDL2_LIBRARIES} GLAD)
+
+if (NOT MSVC)
+    target_link_libraries(5.Coordinates ${SDL2_LIBRARIES} GLAD)
+endif ()
+
+if (MSVC)
+    target_link_libraries(5.Coordinates PRIVATE SDL2::SDL2 SDL2::SDL2main GLAD)
+endif ()

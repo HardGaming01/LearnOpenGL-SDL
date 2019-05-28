@@ -6,4 +6,11 @@ file(COPY Assets
         DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(4.Transform ${SRC_FILES})
-target_link_libraries(4.Transform ${SDL2_LIBRARIES} GLAD)
+
+if (NOT MSVC)
+    target_link_libraries(4.Transform ${SDL2_LIBRARIES} GLAD)
+endif ()
+
+if (MSVC)
+    target_link_libraries(4.Transform PRIVATE SDL2::SDL2 SDL2::SDL2main GLAD)
+endif ()

@@ -342,31 +342,31 @@ void keyboard_handling()
     if (keystate[SDL_SCANCODE_W])
     {
 //        std::cout<<"Key W Down"<<std::endl;
-        camera.ProcessKeyboard(FORWARD, deltaTime);
+        camera.ProcessKeyboard(FORWARD, (float)deltaTime);
     }
     if (keystate[SDL_SCANCODE_S])
     {
 //        std::cout<<"Key S Down"<<std::endl;
-        camera.ProcessKeyboard(BACKWARD, deltaTime);
+        camera.ProcessKeyboard(BACKWARD, (float)deltaTime);
     }
     if (keystate[SDL_SCANCODE_A])
     {
 //        std::cout<<"Key A Down"<<std::endl;
-        camera.ProcessKeyboard(LEFT, deltaTime);
+        camera.ProcessKeyboard(LEFT, (float)deltaTime);
     }
     if (keystate[SDL_SCANCODE_D])
     {
 //        std::cout<<"Key D Down"<<std::endl;
-        camera.ProcessKeyboard(RIGHT, deltaTime);
+        camera.ProcessKeyboard(RIGHT, (float)deltaTime);
     }
 }
 
 void mouse_handling(SDL_MouseMotionEvent &event)
 {
-    camera.ProcessMouseMovement(event.xrel, -event.yrel);
+    camera.ProcessMouseMovement((float)event.xrel, (float)-event.yrel);
 }
 
 void scroll_handling(SDL_MouseWheelEvent &event)
 {
-    camera.ProcessMouseScroll(event.y);
+    camera.ProcessMouseScroll((float)event.y);
 }

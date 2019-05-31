@@ -6,6 +6,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 find_package(SDL2 CONFIG REQUIRED)
 find_package(GLM CONFIG REQUIRED)
+find_package(ASSIMP CONFIG REQUIRED)
 
 if (MSVC)
     # For vcpkg, include path is not provided directly

@@ -12,7 +12,7 @@ if (NOT MSVC)
 endif ()
 
 if (MSVC)
-    target_link_libraries(7.Mesh PRIVATE SDL2::SDL2 SDL2::SDL2main GLAD)
+    target_link_libraries(7.Mesh PRIVATE SDL2::SDL2 SDL2::SDL2main ${ASSIMP_LIBRARIES} GLAD)
 
     set_property(TARGET 7.Mesh PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 endif ()

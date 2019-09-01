@@ -24,6 +24,8 @@ const unsigned int SCR_HEIGHT = 600;
 
 static SDL_Window *window = NULL;
 static SDL_GLContext glContext;
+const Uint8 * keystate;
+float degree = 0.0f;
 
 int main(int argc, char * argv[])
 {
@@ -48,6 +50,7 @@ int main(int argc, char * argv[])
     // -----------
     while (!quit)
     {
+        keystate = SDL_GetKeyboardState(nullptr);
         SDL_GL_SwapWindow(window);
         while (SDL_PollEvent(&event))
         {
@@ -55,6 +58,21 @@ int main(int argc, char * argv[])
             {
                 quit = true;
             }
+            if (keystate[SDL_SCANCODE_LEFT])
+            {
+                if (degree >= 0.0f)
+                {
+                    degree -= 0.01;
+                }
+            }
+            if (keystate[SDL_SCANCODE_RIGHT])
+            {
+                if (degree <= 1.0f)
+                {
+                    degree += 0.01;
+                }
+            }
+            ourShader.setFloat("degree", degree);
         }
 
         // render
